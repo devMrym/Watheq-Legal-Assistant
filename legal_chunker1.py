@@ -78,49 +78,47 @@ def clean_meta_value(val: str) -> str:
 # محرك الاستخراج الرئيسي
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
-class ArticleMetadata:
+class SystemMetadata:
     system_name: str = "غير محدد"
     issue_date: str = "غير محدد"
     publish_date: str = "غير محدد"
     issuing_decree: str = "غير محدد"
     last_update_decree: str = "غير محدد"
-    last_update_date: str = ""
     related_regulations: List[str] = field(default_factory=list)
 
-def extract_metadata_from_text(text: str) -> ArticleMetadata:
-    meta = ArticleMetadata()
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
+def clean_meta_value(val: str) -> str:
+    stop_words = ["التصنيف", "نوع التشريع", "تاريخ النشر", "حالة التشريع", "أداة", "وثيقة", "اخفاء"]
+    for word in stop_words:
+        if word in val:
+            val = val.split(word)[0]
+    return val.strip().split('\n')[0].strip()
+
+def extract_metadata(text: str) -> SystemMetadata:
+    meta = SystemMetadata()
     
-    # تحسين استخراج اسم النظام: البحث عن السطر الذي يحتوي على "نظام ..." بالكامل
-    for i, line in enumerate(lines):
-        if "الباب الأول" in line and i > 0:
-            meta.system_name = lines[i-1]
-            break
-        # إذا وجدنا كلمة نظام متبوعة بكلمات أخرى (وليس مجرد كلمة نظام وحيدة)
-        if line.startswith("نظام ") and len(line) > 10 and len(line) < 100:
-            meta.system_name = line
-            break
+    # 1. System Name Detection
+    table_match = re.search(r"اخفاء جدول المحتوى\s*\n([^\n]+)", text)
+    if table_match:
+        meta.system_name = table_match.group(1).strip()
+    else:
+        # Fallback to phrase detection
+        intro_match = re.search(r"(?:حلت هذه|تضمنت)\s+(نظام|تنظيم|لائحة|قواعد|اللوائح)\s+([^،\n]+)", text)
+        if intro_match:
+            meta.system_name = f"{intro_match.group(1)} {intro_match.group(2)}".strip()
 
-    patterns = {
-        "issue_date": r"تاريخ الاصدار\s*([\u0600-\u06FF\d\s/]+)",
-        "publish_date": r"تاريخ النشر\s*([\u0600-\u06FF\d\s/]+)",
-        "issuing_decree": r"أداة إصدار نظام.*?\n(المرسوم الملكي رقم [^\n]+|م/[^\n]+)",
-        "last_update_decree": r"أداة إصدار آخر تحديث\s*([^\n]+)",
-        "last_update_date": r"تاريخ أداة آخر تحديث\s*([\u0600-\u06FF\d\s/]+)"
-    }
-
-    for key, pattern in patterns.items():
-        match = re.search(pattern, text, re.M | re.S)
-        if match:
-            raw_val = match.group(1).strip()
-            setattr(meta, key, clean_meta_value(raw_val))
+    # 2. Date and Decree Extraction
+    issue_date_match = re.search(r"تاريخ الاصدار\s*([\u0600-\u06FF\d\s/]+)", text)
+    if issue_date_match: meta.issue_date = clean_meta_value(issue_date_match.group(1))
     
-    # تصحيح إذا فشل استخراج أداة الإصدار الأساسية
-    if meta.issuing_decree == "غير محدد" or "آخر تحديث" in meta.issuing_decree:
-        match = re.search(r"أداة إصدار\s+(المرسوم الملكي رقم [^\n]+|م/\d+)", text)
-        if match: meta.issuing_decree = match.group(1).strip()
+    publish_date_match = re.search(r"تاريخ النشر\s*([\u0600-\u06FF\d\s/]+)", text)
+    if publish_date_match: meta.publish_date = clean_meta_value(publish_date_match.group(1))
 
+    decree_match = re.search(r"أداة إصدار آخر تحديث\s*([^\n]+)", text)
+    if decree_match: meta.last_update_decree = clean_meta_value(decree_match.group(1))
+
+    # 3. Related Regulations Extraction
     reg_sec = re.search(r"التشريعات المرتبطة(.*?)المادة الأولى", text, re.S)
     if reg_sec:
         content = reg_sec.group(1)
@@ -129,11 +127,11 @@ def extract_metadata_from_text(text: str) -> ArticleMetadata:
         for line in content.splitlines():
             line = line.strip().split("اخفاء")[0].strip()
             if line in exclude or len(line) < 5: continue
-            if any(k in line for k in ["لائحة", "نظام", "اللوائح"]): found.append(line)
+            if any(k in line for k in ["لائحة", "نظام", "اللوائح", "قواعد"]): 
+                found.append(line)
         meta.related_regulations = list(dict.fromkeys(found))
 
     return meta
-
 def parse_legal_text(text: str, meta: ArticleMetadata) -> List[dict]:
     articles = []
     lines = [l.strip() for l in text.splitlines() if l.strip()]
