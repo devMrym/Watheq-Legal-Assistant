@@ -95,11 +95,6 @@ npm run dev
 
 This project implements unicode-bidi: plaintext and PyMuPDF extraction to solve the common "reversed text" issue in Arabic PDF processing. This ensures correct Arabic rendering.
 
----
-
-## 📝 License
-
-Distributed under the MIT License.
 
 ---
 
