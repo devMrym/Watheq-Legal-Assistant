@@ -58,7 +58,7 @@ NUHA_BASE_URL=your_base_url
 Start the API server, Open the terminal and run this command and keep it running:
 
 ```bash
-uvicorn main:app --reload
+uvicorn api:app --reload  
 ```
 
 ---
