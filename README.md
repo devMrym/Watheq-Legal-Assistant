@@ -1,39 +1,27 @@
-## 💻 How to Use
+# ⚖️ Watheq Legal AI Analyzer
 
-1.  **Run the script:**
-    ```bash
-    python legal_chunker.py
-    ```
-2.  **Paste the text:** Copy the legal text from your source and paste it into the terminal.
-3.  **Finalize:** Type **`done`** or **`تم`** and press Enter to start processing.
-4.  **Check Output:** Your structured JSON will be available in the `output_chunks` folder.
+An advanced legal assistant and contract compliance analyzer specifically designed for **Saudi Arabian Laws and Regulations**.
 
-## 📄 Output JSON Schema
+## 🚀 Features
+* **Contract Analysis:** Upload PDF contracts to check compliance with Saudi laws.
+* **Risk Assessment:** Categorizes issues into High, Medium, and Low risks.
+* **Arabic Support:** Full RTL support with correct character reshaping using PyMuPDF.
+* **Legal RAG:** Powered by the Nuha LLM for high-accuracy legal citations.
 
-Data is stored in a format optimized for searchability and AI context:
+## 🛠️ Tech Stack
+* **Frontend:** React, Tailwind CSS, Framer Motion, Lucide React.
+* **Backend:** FastAPI (Python), PyMuPDF (Fitz).
+* **LLM:** Nuha-2.0 via LiteLLM.
 
-```json
-{
-  "system_info": {
-    "system_name": "نظام_التوثيق",
-    "issue_date": "١٩ ذو القِعدة ١٤٤١",
-    "last_update_decree": "المرسوم الملكي رقم م/164",
-    "related_regulations": [
-      "اللائحة التنفيذية لنظام التوثيق"
-    ]
-  },
-  "articles": [
-    {
-      "chunk_id": "نظام_التوثيق_Art_1",
-      "hierarchy": {
-        "part": "الباب الأول",
-        "chapter": "الفصل الأول",
-        "article_number": "المادة الأولى",
-        "article_index": 1
-      },
-      "content": {
-        "text": "Legal text content here..."
-      }
-    }
-  ]
-}
+## 📦 Installation
+
+### Backend
+1. `cd backend`
+2. `pip install -r requirements.txt`
+3. Create a `.env` file with your `NUHA_API_KEY`.
+4. `uvicorn main:app --reload`
+
+### Frontend
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev`

@@ -1,7 +1,10 @@
-# Secrets
-.env
-.env.local
-
-# Python environment
-.venv/
+# Python
 __pycache__/
+*.py[cod]
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+.DS_Store

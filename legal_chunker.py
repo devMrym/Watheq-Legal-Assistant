@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-⚖️ Saudi Legal Chunker - Full Compound Number Support
-Resolves indices like 131, 135, and 235 correctly.
+⚖️ Watheq Chunker V13 - Dual Number Support (Text & Digits)
+Handles "المادة الخامسة" and "المادة (5)" or "المادة 5".
+Added: Auto-removal of "تعديلات المادة".
 """
 
 import re
@@ -18,7 +19,6 @@ from typing import Optional, List
 
 ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
-# Individual components for additive calculation
 UNITS = {
     "الحادية": 1, "الحادي": 1, "الأولى": 1, "الأول": 1,
     "الثانية": 2, "الثاني": 2, "الثالثة": 3, "الثالث": 3,
@@ -42,36 +42,35 @@ TENS = {
 }
 
 def arabic_ordinal_to_int(text: str) -> int:
-    """Additive parser for compound Arabic ordinals (e.g., 131)."""
-    text = text.strip().translate(ARABIC_DIGITS)
+    """Additive parser for compound Arabic ordinals and plain digits."""
+    # تنظيف النص من الأقواس إذا وجدت مثل (5)
+    text = text.replace("(", "").replace(")", "").strip()
+    text = text.translate(ARABIC_DIGITS)
     
-    # 1. Direct digit check
+    # 1. التحقق إذا كان الرقم مكتوباً بشكل مباشر (أرقام)
     num_match = re.search(r'\d+', text)
     if num_match: return int(num_match.group())
 
     total = 0
-    
-    # 2. Check Century (Hundreds)
+    # 2. المئات
     if "المائتين" in text: total += 200
     elif "المائة" in text or "المئة" in text: total += 100
     
-    # 3. Check Teens (11-19) - Must check before units
+    # 3. العشرات المركبة (11-19)
     for word, val in TEENS.items():
         if word in text:
             total += val
-            return total # If it's a teen, it won't have a 'tens' component
+            return total
             
-    # 4. Check Tens (20, 30... 90)
+    # 4. العقود (20-90)
     for word, val in TENS.items():
         if word in text:
             total += val
             break
             
-    # 5. Check Units (1, 2... 9)
-    # We ignore "العاشر" if we already found a "Tens" component
+    # 5. الآحاد
     for word, val in UNITS.items():
         if word in text:
-            # Avoid adding 1 if it's part of "الحادية والثلاثون" (only add the 1)
             total += val
             break
             
@@ -106,8 +105,7 @@ def extract_metadata(text: str) -> SystemMetadata:
     issue = re.search(r"تاريخ الاصدار\s*([\u0600-\u06FF\d\s/]+)", text)
     if issue: meta.issue_date = clean_meta_value(issue.group(1))
     
-    # Stop before the first article or rule
-    reg_sec = re.search(r"التشريعات المرتبطة(.*?)(?:المادة|القاعدة) الأولى", text, re.S)
+    reg_sec = re.search(r"التشريعات المرتبطة(.*?)(?:المادة|القاعدة) (?:الأولى|1)", text, re.S)
     if reg_sec:
         content = reg_sec.group(1)
         exclude = {"التشريعات المرتبطة", meta.system_name}
@@ -118,6 +116,10 @@ def extract_metadata(text: str) -> SystemMetadata:
 
 def parse_articles(text: str, meta: SystemMetadata) -> List[dict]:
     articles = []
+    
+    # حذف الجمل التكرارية
+    text = re.sub(r'تعديلات المادة', '', text)
+    
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     cur_hierarchy = {"part": None, "chapter": None}
     cur_art_ordinal = None
@@ -145,13 +147,22 @@ def parse_articles(text: str, meta: SystemMetadata) -> List[dict]:
         if line.startswith("الباب"): flush(); cur_hierarchy["part"] = line; cur_hierarchy["chapter"] = None; continue
         if line.startswith("الفصل"): flush(); cur_hierarchy["chapter"] = line; continue
         
-        art_match = re.match(r'^(المادة|القاعدة)\s+([\u0600-\u06FF\s]+)', line)
+        # Regex مطور: يقبل "المادة الخامسة" أو "المادة (5)" أو "المادة 5"
+        art_match = re.match(r'^(المادة|القاعدة)\s+([(\d)\u0600-\u06FF\s]+)', line)
         if art_match:
             flush()
             cur_keyword = art_match.group(1)
+            # استخراج الرقم أو النص الترتيبي
             cur_art_ordinal = art_match.group(2).split(':')[0].strip()
+            
+            # إذا كان السطر يحتوي على محتوى بعد الرقم (مثل المادة 5: نص المادة)
             parts = line.split(":", 1)
-            if len(parts) > 1 and parts[1].strip(): buf.append(parts[1].strip())
+            if len(parts) > 1 and parts[1].strip(): 
+                buf.append(parts[1].strip())
+            elif len(line.split(cur_art_ordinal)) > 1:
+                # لحالات مثل "المادة 5 تخضع السجون..." بدون نقطتين رئيستين
+                remaining = line.replace(f"{cur_keyword} {cur_art_ordinal}", "").strip()
+                if remaining: buf.append(remaining)
             continue
 
         if cur_art_ordinal and not any(x in line for x in ["تاريخ النشر", "أداة إصدار", "اخفاء جدول", "التصنيف"]):
@@ -161,7 +172,7 @@ def parse_articles(text: str, meta: SystemMetadata) -> List[dict]:
     return articles
 
 def main():
-    print("⚖️ Watheq Chunker V11 (Fixes Compound 100+ Indexing) - Type 'done':")
+    print("⚖️ Watheq Chunker V13 (Dual Num + Clean) - Type 'done':")
     input_text = ""
     while True:
         line = sys.stdin.readline()

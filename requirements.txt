@@ -1,0 +1,20 @@
+# Web Frameworks
+fastapi
+uvicorn
+python-multipart
+streamlit
+
+# PDF Processing (PyMuPDF)
+pymupdf
+
+# RAG & Database
+chromadb
+sentence-transformers
+tqdm
+
+# LLM & API
+litellm
+python-dotenv
+
+# Utilities
+pydantic
