@@ -55,12 +55,6 @@ NUHA_API_KEY=your_key_here
 NUHA_BASE_URL=your_base_url
 ```
 
-Build the legal database (run once):
-
-```bash
-python build_db.py
-```
-
 Start the API server, Open the terminal and run this command and keep it running:
 
 ```bash
